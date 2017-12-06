@@ -11,6 +11,7 @@ def ecg_to_matrix():
     #    b = ((data[1] & 0xF0) << 4) | data[2]
     # [a,b] 
 
+# https://physionet.org/physiotools/wag/signal-5.htm
 #Each sample is represented by a 16-bit two’s complement amplitude stored least significant byte first. Any unused high-order bits are sign-extended from the most significant bit. Historically, the format used for MIT-BIH and AHA database distribution 9-track tapes was format 16, with the addition of a logical EOF (octal 0100000) and null-padding after the logical EOF.
 def parse_dat(hdr):
     return
@@ -80,6 +81,7 @@ def parse_signal_line(line):
 def valid_line(line):
     return (line.strip() and (not line.startswith('#')))
 
+# https://physionet.org/physiotools/wag/header-5.htm
 def parse_hea(fname):
     f = open(fname, 'r')
     lines = f.readlines()
@@ -92,18 +94,27 @@ def parse_hea(fname):
         if valid_line(lines[idx]) : break
         idx += 1
 
-    h_rec = parse_record_line(lines[idx])
+    h_rec = parse_record_line(lines[idx].rstrip())
 
     # read signal lines
     sigs = []
     for line in [x for x in lines[idx+1:] if valid_line(x)]:
-        h_sig = parse_signal_line(line)
+        h_sig = parse_signal_line(line.rstrip())
         h_sig['filename'] = os.path.join(dirname, h_sig['datfile'])
         sigs.append( h_sig )
 
+    # get info strings at end of file
+    idx = len(lines) - 1
+    info = []
+    while idx > 0:
+        if valid_line(lines[idx]) : break
+        info.insert(0, lines[idx][1:].rstrip())
+        idx -= 1
+
     return { 'name': h_rec['name'], 'num_samples': h_rec['samples_per_signal'], 
             'frequency': int(h_rec['frequency']), 
-            'signals': sigs[0:h_rec['num_signals']] }
+            'signals': sigs[0:h_rec['num_signals']],
+            'info': info }
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
